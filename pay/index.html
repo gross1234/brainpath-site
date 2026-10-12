@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#23415F">
+<meta name="robots" content="noindex">
+<title>Brainpath Checkout</title>
+<script src="https://js.stripe.com/v3/"></script>
+<script src="../shared/config.js"></script>
+<style>
+  :root {
+    --navy: #23415F; --navy-deep: #1A3249; --teal: #2A9D8F; --teal-deep: #1F7A6F; --mist: #E8F0F7;
+    --white: #FFFFFF; --text: #1B2B3C; --muted: #5A6B7D; --faint: #8796A6; --line: #D3DFEA; --danger: #C2410C;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { background: var(--mist); }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    min-height: 100vh; background: var(--mist); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  main { max-width: 460px; margin: 0 auto; }
+  .top { display: flex; align-items: center; gap: 10px; margin: 4px 0 18px; }
+  .logo { width: 40px; height: 40px; border-radius: 11px; background: url("../shared/icon.png") center/cover, var(--navy); }
+  .top b { font-size: 20px; font-weight: 800; color: var(--navy); }
+  .top span { display: block; font-size: 12px; color: var(--muted); }
+  .card { background: var(--white); border: 1px solid var(--line); border-radius: 20px; padding: 18px; box-shadow: 0 6px 24px rgba(35,65,95,.08); }
+  .card.plus { border: 2px solid var(--teal); }
+  .row { display: flex; align-items: center; gap: 12px; }
+  .emoji { font-size: 32px; line-height: 1; }
+  h1 { font-size: 21px; font-weight: 800; margin: 0; color: var(--navy); }
+  .sub { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+  .price { font-size: 28px; font-weight: 800; color: var(--navy); margin-top: 12px; }
+  .price small { font-size: 15px; font-weight: 600; color: var(--muted); }
+  .features { list-style: none; padding: 0; margin: 12px 0 4px; }
+  .features li { display: flex; gap: 10px; font-size: 15px; padding: 4px 0; }
+  .features li i { font-style: normal; color: var(--teal); font-weight: 800; width: 16px; }
+  .btn {
+    display: block; width: 100%; margin-top: 14px; border: 0; cursor: pointer; text-decoration: none; text-align: center;
+    background: var(--teal); color: var(--white); border-radius: 14px;
+    font: inherit; font-size: 17px; font-weight: 700; padding: 15px 12px;
+  }
+  .btn:active { background: var(--teal-deep); }
+  .btn[disabled] { opacity: .6; cursor: default; }
+  .btn small { display: block; font-size: 12px; font-weight: 600; opacity: .85; }
+  .fine { color: var(--faint); font-size: 11.5px; text-align: center; line-height: 1.5; margin: 14px 4px 0; }
+  .fine a { color: var(--muted); }
+  #checkout { margin-top: 14px; border-radius: 14px; overflow: hidden; background: #fff; display: none; }
+  #checkout.on { display: block; min-height: 420px; }
+  .msg { margin-top: 12px; padding: 10px 12px; border-radius: 12px; font-size: 14px; display: none; }
+  .msg.err { display: block; background: #FFF4ED; border: 1px solid var(--danger); color: #7C2D12; }
+  .center { text-align: center; }
+  .big-emoji { font-size: 60px; margin: 8px 0; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input {
+    width: 100%; font: inherit; font-size: 16px; color: var(--text); background: var(--white);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  }
+  input:focus { outline: 2px solid var(--teal); border-color: transparent; }
+  [hidden] { display: none !important; }
+  .methods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 4px; }
+  .method {
+    appearance: none; border: 2px solid var(--line); background: var(--white); color: var(--navy);
+    font: inherit; font-weight: 700; font-size: 17px; border-radius: 14px; min-height: 52px; cursor: pointer;
+  }
+  .method.on { border-color: var(--navy); background: var(--navy); color: var(--white); }
+  .method:disabled { opacity: .55; cursor: default; }
+  .method .apl { font-family: -apple-system, system-ui; font-size: 19px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><div class="logo"></div><div><b>Brainpath</b><span>Secure checkout</span></div></div>
+
+  <!-- Buy -->
+  <section id="buy" hidden>
+    <div class="card" id="buyCard">
+      <div class="row"><div class="emoji" id="emoji"></div><div><h1 id="title"></h1></div></div>
+      <p class="sub" id="subtitle"></p>
+      <ul class="features" id="features" hidden>
+        <li><i>✓</i>Unlimited full IQ tests</li>
+        <li><i>✓</i>Every lesson unlocked</li>
+        <li><i>✓</i>Section practice for each skill</li>
+        <li><i>✓</i>No ads</li>
+      </ul>
+      <div class="price" id="price"></div>
+      <div class="methods" id="methods" role="radiogroup" aria-label="Payment method">
+        <button class="method" data-m="apple_pay" id="mApple" role="radio"><span class="apl">&#xF8FF;</span>&nbsp;Pay</button>
+        <button class="method" data-m="card" id="mCard" role="radio">Card</button>
+      </div>
+      <button class="btn" id="go"></button>
+      <div class="msg" id="err"></div>
+      <div id="checkout"></div>
+      <p class="fine" id="fine"></p>
+    </div>
+  </section>
+
+  <!-- Done -->
+  <section id="done" class="card center" hidden>
+    <div class="big-emoji" id="doneEmoji">🎉</div>
+    <h1 id="doneTitle">You're all set</h1>
+    <p class="sub" id="doneSub">Head back to Brainpath. Your purchase is waiting for you.</p>
+    <a class="btn" href="brainpath://paid">Back to Brainpath</a>
+    <p class="fine">A receipt is on its way to your email. Keep it: its receipt number lets you restore on a new phone.</p>
+  </section>
+
+  <!-- Restore -->
+  <section id="restore" class="card" hidden>
+    <div class="row"><div class="emoji">🔁</div><h1>Restore purchases</h1></div>
+    <p class="sub">Use the email you paid with and the receipt (or invoice) number from any Brainpath receipt email.</p>
+    <form id="restoreForm">
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="email" required>
+      <label for="receipt">Receipt or invoice number</label>
+      <input id="receipt" autocapitalize="characters" placeholder="e.g. 1234-5678 or ABC123-0001" required>
+      <button class="btn" type="submit" id="restoreGo">Restore</button>
+    </form>
+    <div class="msg" id="restoreErr"></div>
+  </section>
+
+  <!-- Opened without the app / back from the billing portal -->
+  <section id="open" class="card center" hidden>
+    <div class="big-emoji">🧠</div>
+    <h1 id="openTitle">Open Brainpath</h1>
+    <p class="sub" id="openSub">Purchases start from inside the Brainpath app.</p>
+    <a class="btn" href="brainpath://paid">Back to Brainpath</a>
+  </section>
+</main>
+
+<script>
+const CFG = window.BP_CONFIG || {};
+const FN = (CFG.url || '') + '/functions/v1/';
+const KEY = CFG.key || '';
+const q = new URLSearchParams(location.search);
+const install = q.get('i');
+const $ = (id) => document.getElementById(id);
+const money = (c) => '$' + (c / 100).toFixed(2);
+const show = (id) => $(id).hidden = false;
+const LEGAL = 'Sold by Sort Inc. (Convivial Concierge), processed by Stripe. Your receipt comes from Sort Inc. ' +
+  '<a href="../terms.html">Terms of Use</a> • <a href="../privacy-policy.html">Privacy Policy</a>';
+
+async function call(fn, body) {
+  const r = await fetch(FN + fn, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: KEY },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Something went wrong. Try again.');
+  return j;
+}
+function fail(el, e) { el.textContent = e.message || String(e); el.className = 'msg err'; }
+
+async function buy() {
+  const { items, publishableKey } = await call('bp-pay', { action: 'catalog' });
+  const it = items.find((i) => i.id === q.get('p'));
+  if (!install || !it) { show('open'); return; }
+  const isPlus = !!it.interval;
+  show('buy');
+
+  $('emoji').textContent = it.emoji;
+  $('title').textContent = it.title;
+  $('subtitle').textContent = isPlus ? '' : it.subtitle;
+  $('subtitle').hidden = isPlus;
+  $('price').innerHTML = isPlus ? `${money(it.cents)}<small> / month</small>` : money(it.cents);
+  if (isPlus) { $('buyCard').classList.add('plus'); $('features').hidden = false; }
+  $('go').textContent = isPlus ? `Subscribe • ${money(it.cents)}/month` : `Pay ${money(it.cents)}`;
+  $('fine').innerHTML = (isPlus
+    ? `${money(it.cents)} per month. Renews automatically every month until you cancel. Cancel anytime from Manage subscription in the app; you keep Plus until the end of the paid month. `
+    : 'One-time purchase of one full IQ test. Non-refundable once the test is started, except as required by law. ') + LEGAL;
+
+  // Card or Apple Pay. Apple Pay only where the device can actually pay with it.
+  const applePayOK = !!(window.ApplePaySession && ApplePaySession.canMakePayments && ApplePaySession.canMakePayments());
+  let method = q.get('m') === 'card' || !applePayOK ? 'card' : 'apple_pay';
+  if (!applePayOK) { $('mApple').hidden = true; $('methods').style.gridTemplateColumns = '1fr'; }
+  const drawMethods = () => document.querySelectorAll('.method').forEach((b) => {
+    b.classList.toggle('on', b.dataset.m === method); b.setAttribute('aria-checked', String(b.dataset.m === method));
+  });
+  document.querySelectorAll('.method').forEach((b) => b.onclick = () => { if (!$('go').disabled) { method = b.dataset.m; drawMethods(); } });
+  drawMethods();
+
+  const stripe = Stripe(publishableKey);
+  $('go').onclick = async () => {
+    $('go').disabled = true; $('err').className = 'msg';
+    try {
+      const checkout = await stripe.initEmbeddedCheckout({
+        fetchClientSecret: async () => (await call('bp-pay', { action: 'checkout', install, product: it.id, method })).clientSecret,
+      });
+      $('go').hidden = true;
+      for (const b of document.querySelectorAll('.method')) b.disabled = true;
+      $('checkout').classList.add('on');
+      checkout.mount('#checkout');
+      $('checkout').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (e) {
+      $('go').disabled = false; fail($('err'), e);
+    }
+  };
+}
+
+async function done() {
+  show('done');
+  try {
+    const s = await call('bp-pay', { action: 'session', id: q.get('done') });
+    if (s.status !== 'complete') {
+      $('doneEmoji').textContent = '⏳'; $('doneTitle').textContent = 'Payment not finished';
+      $('doneSub').textContent = 'Nothing was charged. Go back to the app and try again.';
+    } else if (s.product === 'brainpath.plus.monthly') {
+      $('doneEmoji').textContent = '🧠'; $('doneTitle').textContent = 'Welcome to Brainpath Plus';
+      $('doneSub').textContent = 'Unlimited tests, every lesson and no ads. Head back to the app.';
+    } else if (s.product === 'brainpath.test') {
+      $('doneEmoji').textContent = '📝'; $('doneTitle').textContent = 'Your extra test is ready';
+      $('doneSub').textContent = 'Head back to Brainpath to start it.';
+    }
+  } catch { /* keep the generic message */ }
+}
+
+function restore() {
+  if (!install) { show('open'); return; }
+  show('restore');
+  $('restoreForm').onsubmit = async (ev) => {
+    ev.preventDefault();
+    $('restoreGo').disabled = true; $('restoreErr').className = 'msg';
+    try {
+      await call('bp-restore', { install, email: $('email').value, receipt: $('receipt').value });
+      $('restore').hidden = true;
+      $('doneEmoji').textContent = '✅'; $('doneTitle').textContent = 'Purchases restored';
+      $('doneSub').textContent = 'Go back to Brainpath to pick them up.';
+      show('done');
+    } catch (e) { fail($('restoreErr'), e); $('restoreGo').disabled = false; }
+  };
+}
+
+if (q.get('done')) done();
+else if (q.get('restore')) restore();
+else if (q.get('back')) { $('openTitle').textContent = 'All done'; $('openSub').textContent = 'Your changes are saved. Head back to Brainpath.'; show('open'); }
+else buy().catch((e) => { show('buy'); fail($('err'), e); $('go').hidden = true; });
+</script>
+</body>
+</html>
